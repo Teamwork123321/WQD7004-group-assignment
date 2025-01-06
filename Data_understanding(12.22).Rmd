@@ -1,0 +1,166 @@
+---
+title: "data understading"
+output: 
+  html_document:
+    toc: true
+date: "2024-12-18"
+---
+
+```{r setup, include=TRUE}
+```
+#1.Dataset overview
+```{r 1.Dataset overview, echo=TRUE, paged.print=TRUE}
+library(dplyr)
+library(readxl)
+data1<-read_excel("C:/Users/where/Desktop/wqd7004_dataset.xlsx")
+head(data1)
+
+#The number of rows and columns
+
+nrow(data1) 
+ncol(data1) 
+dim(data1) 
+names(data1)
+
+#Type of data
+sapply(data1, class) 
+
+#Data distribution
+summary(data1)
+
+```
+#2.Verify Data Quality
+##2.1Check missing value
+```{r 2.1Check missing value, echo=TRUE}
+missing_val <- colSums(is.na(data1))
+print(missing_val)
+
+```
+##2.2Check validity of the dataset
+```{r 2.2Check validity of the dataset, echo=TRUE}
+#check itemId
+itemId_positive_int <- all(data1$itemId > 0 & data1$itemId %% 1 == 0, na.rm = TRUE)
+itemId_unique <- length(check_itemId) == length(unique(check_itemId))
+
+if (itemId_positive_int & itemId_unique) {
+  cat("itemId:All values are positive integers and unique.\n")
+} else {
+  cat("itemId:The value of the existence of positive integer or duplicate values.\n")
+}
+
+##check priceShow&originalPrice
+priceShow_positive<-all(data1$priceShow > 0,na.rm = TRUE)
+originalPrice_positive<-all(data1$originalPrice > 0,na.rm = TRUE)
+
+if (priceShow_positive & originalPrice_positive) {
+  cat("priceShow: All values are positive.\n")
+  cat("originalPrice: All values are positive.\n")
+} else {
+  cat("Non-positive values exist.")
+}
+
+##check discount
+if(all(data1$discount>=0 & data1$discount<100)){
+  cat("discount:All values are between 0 and 100.\n")
+}else{
+  cat("discount:An invalid value exists.\n")
+}
+
+##check ratingScore
+if(all(data1$ratingScore>=0 & data1$ratingScore<=5)){
+  cat("ratingScore:All values are between 0 and 5.\n")
+}else{
+  cat("ratingScore:An invalid value exists.\n")
+}
+
+##check Review and itemSoldCntShow
+review<-all(data1$review >= 0 & data1$review %% 1 == 0,na.rm = TRUE)
+itemSoldCntShow<-all(data1$itemSoldCntShow >= 0 & data1$itemSoldCntShow %% 1 == 0,na.rm = TRUE)
+
+
+if (review & itemSoldCntShow) {
+  cat("review: All values are non-negative integers.\n")
+  cat("itemSoldCntShow: All values are non-negative integers.\n")
+} else {
+  cat("An invalid value exists.")
+}
+```
+##2.3Check outliers
+```{r 2.3Check outliers, echo=TRUE}
+#2.3Check outliers
+library(ggplot2)
+library(reshape2)
+library(readxl)
+data1<-read_excel("C:/Users/where/Desktop/wqd7004_dataset.xlsx")
+head(data1)
+
+remove_outliers <- function(data, columns) {
+  for (col in columns) {
+    if (is.numeric(df[[col]])) {
+      Q1 <- quantile(df[[col]], 0.25, na.rm = TRUE)
+      Q3 <- quantile(df[[col]], 0.75, na.rm = TRUE)
+      IQR <- Q3 - Q1
+      lower_bound <- Q1 - 1.5 * IQR
+      upper_bound <- Q3 + 1.5 * IQR
+      df <- df[df[[col]] >= lower_bound & df[[col]] <= upper_bound, ]
+    } else {
+      warning(cat("Not numeric data."))
+    }
+  }
+  
+  return(data)
+}
+
+check_outliers <- c("itemId","sellerId","brandId","originalPrice","itemSoldCntShow", "priceShow","ratingScore", "review","discount")
+data1_cleaned <- remove_outliers(data1, check_outliers)
+
+print("Data without outliers：")
+print(data1_cleaned)
+```
+#3.Univariate analysis
+```{r}
+library(ggplot2)
+library(gridExtra)
+
+data <- data1_cleaned[, c("originalPrice", "priceShow", "itemSoldCntShow", "discount", "review","ratingScore")]
+
+barplot <- function(data, column_name) {
+  ggplot(data, aes_string(x = column_name)) +
+    geom_bar(fill = "skyblue", color = "red") +
+    labs(title = paste(column_name), x = column_name, y = "Frequency") +
+    theme_minimal()
+}
+
+p1 <- barplot(data, "originalPrice")
+p2 <- barplot(data, "priceShow")
+p3 <- barplot(data, "itemSoldCntShow")
+p4 <- barplot(data, "discount")
+p5 <- barplot(data, "review")
+p6 <- barplot(data, "ratingScore")
+
+grid.arrange(p1, p2, p3, p4, p5,p6, ncol = 3)
+
+
+```
+
+
+
+#4.Multivariate analysis
+```{r 4.Multivariate analysis, echo=TRUE}
+library(ggplot2)
+library(reshape2)
+library(readxl)
+head(data1_cleaned)
+
+numeric <- data1_cleaned[, c("itemId","sellerId","brandId","originalPrice","itemSoldCntShow", "priceShow","ratingScore", "review","discount")]
+matrix <- cor(numeric, use = "complete.obs")  # "complete.obs" 
+melted <- melt(matrix)
+
+ggplot(melted, aes(Var1, Var2, fill = value)) +
+  geom_tile() +
+  geom_text(aes(label = sprintf("%.2f", value)), color = "black", size = 3) +
+  scale_fill_gradient2(low = "purple", high = "red", mid = "white", midpoint = 0, limit = c(-1, 1)) +
+  labs(title = "Heat map among variable", x = "variable", y = "variable", fill = "Correlation") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
